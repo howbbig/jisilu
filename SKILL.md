@@ -1,6 +1,6 @@
 ---
 name: jisilu-registered-convertibles
-description: Fetch the current Jisilu pending-convertible-bond feed and write only projects at the "同意注册" stage to a five-tab-delimited stock.log file. Use when asked to refresh this registered-convertible watchlist; do not use for historical issuance research.
+description: Fetch the current Jisilu pending-convertible-bond feed and write only projects at the "同意注册" stage, including an estimated allotment safety cushion, to a three-tab-delimited stock.log file. Use when asked to refresh this registered-convertible watchlist; do not use for historical issuance research.
 ---
 
 # Jisilu Registered Convertibles
@@ -9,17 +9,18 @@ Fetch `https://www.jisilu.cn/webapi/cb/pre/` as JSON. This is a current watchlis
 
 Write `stock.log` in this skill's root directory. Overwrite only that file, unless the user specifies another destination. Do not create Markdown output.
 
-For routine refreshes, run `scripts/refresh_stock_log.sh [output-path]`. With no argument it changes to the skill root and writes to `./stock.log`; an explicit output path overrides that default. The script fetches, filters, writes atomically, records its Shanghai run time, and validates the five-Tab field separators.
+For routine refreshes, run `scripts/refresh_stock_log.sh [output-path]`. With no argument it changes to the skill root and writes to `./stock.log`; an explicit output path overrides that default. The script fetches, filters, writes atomically, records its Shanghai run time, and validates the three-Tab field separators. It also reads the latest stock price and total market capitalization from Eastmoney's public quote endpoint for the safety-cushion estimate.
 
-Include only records whose current progress is exactly `同意注册`. For each record, write these fields in this order, separated by **five literal Tab characters**:
+Include only records whose current progress is exactly `同意注册`. For each record, write these fields in this order, separated by **three literal Tab characters**:
 
-`正股名称（正股代码）\t\t\t\t\t发行规模（亿元）\t\t\t\t\t当前进度\t\t\t\t\t同意注册日`
+`正股名称（正股代码）\t\t\t发行规模（亿元）\t\t\t当前价（元）\t\t\t估算配债安全垫\t\t\t同意注册日`
 
 - Extract the registration date from the `progress_full` timeline entry ending in `同意注册`.
-- Render unavailable names, codes, or dates as `—`.
-- Put a short plain-text title, data-source line, and Shanghai fetch/run timestamp (to seconds) above the column header. Use five literal Tab characters between fields.
+- Estimate the safety cushion as `(发行规模 ÷ 估算总股本) ÷ 当前价 × 0.57`, equivalently `发行规模（元）÷ 总市值 × 0.57`. Show it as a percentage rounded to two decimal places. This is an estimate only: it changes with the quote and may differ from the final allotment after changes in share capital or the final offering size.
+- Render unavailable names, codes, dates, quotes, market capitalization, or estimates as `—`; a quote failure for one stock must not discard the other records.
+- Put a short plain-text title, data-source line, and Shanghai fetch/run timestamp (to seconds) above the column header. Use three literal Tab characters between fields.
 - Preserve no records from prior runs: each refresh reflects the latest feed only.
 
-Before writing, report the number of source records and the number retained. After writing, verify that `stock.log` exists and that every table row has 15 tab characters (three five-tab separators).
+Before writing, report the number of source records and the number retained. After writing, verify that `stock.log` exists and that every table row has 12 tab characters (four three-tab separators).
 
 If the feed cannot be fetched or parsed, leave an existing `stock.log` unchanged and explain the failure. Do not infer or fabricate project status.
