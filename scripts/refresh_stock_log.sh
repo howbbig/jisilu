@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Refresh a three-Tab-delimited list of Jisilu projects at the 同意注册 stage.
+# Refresh a two-Tab-delimited list of Jisilu projects at the 同意注册 stage.
 set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -36,7 +36,7 @@ const registrationDate = (timeline) => {
   return matches.length ? matches.at(-1)[1] : dash;
 };
 const progress = (item) => clean(item.progress_nm);
-const threeTabs = '\t\t\t';
+const twoTabs = '\t\t';
 const quote = (stockId) => new Promise((resolve) => {
   const market = /^6/.test(String(stockId)) ? '1' : '0';
   const request = https.get(`https://push2.eastmoney.com/api/qt/stock/get?secid=${market}.${encodeURIComponent(stockId)}&fields=f43,f116`, { timeout: 15000 }, (response) => {
@@ -62,12 +62,15 @@ const rows = registered.map((item, index) => {
   const amount = Number(item.amount);
   const quoteData = quotes[index];
   const price = quoteData ? quoteData.price.toFixed(2) : dash;
+  const perShareAllotment = quoteData && Number.isFinite(amount) && amount > 0
+    ? (amount * 1e8 * quoteData.price / quoteData.marketCap).toFixed(2)
+    : dash;
   const cushion = quoteData && Number.isFinite(amount) && amount > 0
     ? `${(amount * 1e8 / quoteData.marketCap * 0.57 * 100).toFixed(2)}%`
     : dash;
   return [
-    `${clean(item.stock_nm)}（${clean(item.stock_id)}）`, clean(item.amount), price, cushion, registrationDate(item.progress_full),
-  ].join(threeTabs);
+    `${clean(item.stock_nm)}（${clean(item.stock_id)}）`, clean(item.amount), price, perShareAllotment, cushion, registrationDate(item.progress_full),
+  ].join(twoTabs);
 });
 const fetchedAt = new Intl.DateTimeFormat('sv-SE', {
   timeZone: 'Asia/Shanghai',
@@ -75,9 +78,9 @@ const fetchedAt = new Intl.DateTimeFormat('sv-SE', {
   hour: '2-digit', minute: '2-digit', second: '2-digit',
   hour12: false,
 }).format(new Date()).replace(' ', ' ');
-const text = ['集思录待发转债：同意注册项目', '数据源：集思录待发转债接口；行情及总市值：东方财富公开行情接口。', `抓取时间：${fetchedAt}（Asia/Shanghai）；字段以三个 Tab 分隔；安全垫为估算值。`, '', ['正股', '规模(亿元)', '当前价(元)', '估算配债安全垫', '同意注册日'].join(threeTabs), ...rows, ''].join('\n');
+const text = ['集思录待发转债：同意注册项目', '数据源：集思录待发转债接口；行情及总市值：东方财富公开行情接口。', `抓取时间：${fetchedAt}（Asia/Shanghai）；字段以两个 Tab 分隔；每股配债额及安全垫均为估算值。`, '', ['正股', '规模(亿元)', '当前价(元)', '估算每股配债额(元)', '估算配债安全垫', '同意注册日'].join(twoTabs), ...rows, ''].join('\n');
 fs.writeFileSync(outputPath, text, 'utf8');
-for (const row of rows) if ((row.match(/\t/g) || []).length !== 12) { console.error('输出校验失败：数据行不是四个三 Tab 分隔字段。'); process.exit(1); }
+for (const row of rows) if ((row.match(/\t/g) || []).length !== 10) { console.error('输出校验失败：数据行不是五个两 Tab 分隔字段。'); process.exit(1); }
 console.log(JSON.stringify({ source: payload.data.length, retained: rows.length }));
 })().catch((error) => { console.error(`生成输出失败：${error.message}`); process.exit(1); });
 NODE
